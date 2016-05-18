@@ -36,7 +36,13 @@ metadata_r.next()
 unknown_ids = set()
 
 for row in metadata_r:
-    rowid,st_delivname,kepid,tm_designation,ra,dec,kepmag,activity,teff,teff_err1,teff_err2,teff_prov,logg,logg_err1,logg_err2,logg_prov,feh,feh_err1,feh_err2,feh_prov,radius,radius_err1,radius_err2,mass,mass_err1,mass_err2,dens,dens_err1,dens_err2,prov_sec,nconfp,nkoi,ntce,st_quarters,Q1,Q2,Q3,Q4,Q5,Q6,Q7,Q8,Q9,Q10,Q11,Q12,Q13,Q14,Q15,Q16,Q17,NumQobserved,st_vet_date,ra_str,dec_str = row
+    (rowid, st_delivname, kepid, tm_designation, ra, dec, kepmag, activity,
+     teff, teff_err1, teff_err2, teff_prov, logg, logg_err1, logg_err2,
+     logg_prov, feh, feh_err1, feh_err2, feh_prov, radius, radius_err1,
+     radius_err2, mass, mass_err1, mass_err2, dens, dens_err1, dens_err2,
+     prov_sec, nconfp, nkoi, ntce, st_quarters, Q1, Q2, Q3, Q4, Q5, Q6, Q7, Q8,
+     Q9, Q10, Q11, Q12, Q13, Q14, Q15, Q16, Q17, NumQobserved, st_vet_date,
+     ra_str, dec_str) = row
     kepid = int(kepid)
 
     if kepid not in fits_files:
