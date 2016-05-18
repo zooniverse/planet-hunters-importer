@@ -1,180 +1,165 @@
+import astropy.io.fits as fits
 import copy
 import csv
-import ujson as json
-import math
 import numpy
 import os
-import progressbar as pb
+import re
+import json
 
-epic_columns = (
-    'epic_number',
-    'epic_ra',
-    'epic_dec',
-    'kepler',
-    '2mass_id',
-    '2mass_ra',
-    '2mass_dec',
-    'Jmag',
-    'Hmag',
-    'Kmag',
-    'sdss_id',
-    'sdss_ra',
-    'sdss_dec',
-    'Umag',
-    'Gmag',
-    'Rmag',
-    'Imag',
-    'Zmag'
-)
+# Load metadata from CSV
 
-magnitude_cols = (
-    'kepler',
-    'Jmag',
-    'Hmag',
-    'Kmag',
-    'Umag',
-    'Gmag',
-    'Rmag',
-    'Imag',
-    'Zmag'
-)
+metadata_f = open('/data/KDwarfs-batch1-fixed.csv', 'r')
+metadata_r = csv.reader(metadata_f)
 
-metadata = {}
-magnitudes = {}
-manifest = []
+# Put all fits filenames into dict of lists indexed by kepler ID
+fits_files = {}
 
-CAMPAIGN_NO = "C04"
-
-with open('EPIC_meta_data.dat.K2C4') as epic_f:
-    epic_data = csv.reader(epic_f, delimiter=" ", skipinitialspace=True)
-
-    for md_row in epic_data:
-        epic_id = int(md_row[0])
-        d = metadata.setdefault(epic_id, {
-            'k2': True, 'spectral_type': None
-        })
-        m = magnitudes.setdefault(epic_id, {})
-        for head, col in zip(epic_columns[1:], md_row[1:]):
-            if col == '-999':
-                col = None
-            elif head not in ('2mass_id', 'sdss_id'):
-                col = float(col)
-                if math.isnan(col):
-                    col = None
-
-            if head in magnitude_cols:
-                m[head] = col
-            else:
-                d[head] = col
-
-quarter_size = 30
-
-def quarter_append(q, x, y, dy):
+def split_append(q, x, y, dy):
     q['x'].append(x)
     q['y'].append(y)
     q['dy'].append(dy)
 
-files = [ f for f in os.listdir('lc-data')
-          if f.endswith('.csv') and f.startswith('ep') ]
+DATA_PATH_PREFIX = os.path.join('/', 'data', 'kdwarf')
 
-progress = pb.ProgressBar(
-    widgets=[
-        " Writing JSON: ", pb.Percentage(), ' ', pb.Bar(marker='='), ' ',
-        pb.ETA()
-    ], maxval=len(files)
-).start()
+for fits_file_name in os.listdir('/data/kdwarf'):
+    kepler_id_match = re.match(
+        r'kplr(?P<keplerid>[0-9]{9})-[0-9]{13}_llc\.fits$',
+        fits_file_name
+    )
+    if not kepler_id_match:
+        continue
+    kepler_id = int(kepler_id_match.group('keplerid'))
+    fits_files.setdefault(kepler_id, []).append(fits_file_name)
 
-for f_num, f_name in enumerate(files):
-    epic_id = int(f_name.replace('ep', '').replace('.csv', ''))
+metadata_r.next()
 
-    if not epic_id in metadata:
-        print "Warning: %s not found in metadata" % epic_id
+unknown_ids = set()
+
+for row in metadata_r:
+    rowid,st_delivname,kepid,tm_designation,ra,dec,kepmag,activity,teff,teff_err1,teff_err2,teff_prov,logg,logg_err1,logg_err2,logg_prov,feh,feh_err1,feh_err2,feh_prov,radius,radius_err1,radius_err2,mass,mass_err1,mass_err2,dens,dens_err1,dens_err2,prov_sec,nconfp,nkoi,ntce,st_quarters,Q1,Q2,Q3,Q4,Q5,Q6,Q7,Q8,Q9,Q10,Q11,Q12,Q13,Q14,Q15,Q16,Q17,NumQobserved,st_vet_date,ra_str,dec_str = row
+    kepid = int(kepid)
+
+    if kepid not in fits_files:
+        unknown_ids.add(kepid)
         continue
 
-    default_output = {
-        'x': [],
-        'y': [],
-        'dy': [],
-        'metadata': {
-            "EPIC_number": epic_id,
-            'kepler_2_campaign_no': CAMPAIGN_NO,
-        }
-    }
+    print "Processing %s" % kepid
 
-    default_output['metadata'].update(metadata[epic_id])
-    default_output['metadata'].update(magnitudes[epic_id])
+    # match files to Qx where Qx = 1
+    quarters = []
+    for quarter, present in enumerate([
+        Q1, Q2, Q3, Q4, Q5, Q6, Q7, Q8, Q9, Q10, Q11, Q12, Q13, Q14, Q15, Q16,
+        Q17
+    ], start=1):
+        if present == '1':
+            quarters.append(quarter)
 
-    xs, ys, dys = [], [], []
+    # Load lightcurve data from FITS
+    for fits_file, quarter in zip(sorted(fits_files[kepid]), quarters):
+        print "\tProcessing %s" % fits_file
+        with fits.open(os.path.join(DATA_PATH_PREFIX, fits_file)) as hdu_list:
+            lc_data = hdu_list['LIGHTCURVE'].data
+            default_output = {
+                'x': [],
+                'y': [],
+                'dy': [],
+                'metadata': {
+                    "rowid": rowid,
+                    "st_delivname": st_delivname,
+                    "kepid": kepid,
+                    "tm_designation": tm_designation,
+                    "ra": ra,
+                    "dec": dec,
+                    "kepmag": kepmag,
+                    "activity": activity,
+                    "teff": teff,
+                    "teff_err1": teff_err1,
+                    "teff_err2": teff_err2,
+                    "teff_prov": teff_prov,
+                    "logg": logg,
+                    "logg_err1": logg_err1,
+                    "logg_err2": logg_err2,
+                    "logg_prov": logg_prov,
+                    "feh": feh,
+                    "feh_err1": feh_err1,
+                    "feh_err2": feh_err2,
+                    "feh_prov": feh_prov,
+                    "radius": radius,
+                    "radius_err1": radius_err1,
+                    "radius_err2": radius_err2,
+                    "mass": mass,
+                    "mass_err1": mass_err1,
+                    "mass_err2": mass_err2,
+                    "dens": dens,
+                    "dens_err1": dens_err1,
+                    "dens_err2": dens_err2,
+                    "prov_sec": prov_sec,
+                    "nconfp": nconfp,
+                    "nkoi": nkoi,
+                    "ntce": ntce,
+                    "st_quarters": st_quarters,
+                    "st_vet_date": st_vet_date,
+                    "ra_str": ra_str,
+                    "dec_str": dec_str
+                },
+            }
+            xs, ys, dys = [], [], []
+            for lc_row in lc_data:
+                if not numpy.isnan(lc_row['TIME']):
+                    xs.append(float(lc_row['TIME']))
+                    # TODO: Check if we should use SAP_FLUX or PDCSAP_FLUX
+                    ys.append(float(lc_row['PDCSAP_FLUX']))
+                    dys.append(None)
 
-    with open("lc-data/%s" % f_name) as f:
-        r = csv.reader(f)
-        for row in r:
-            xs.append(float(row[0]))
-            ys.append(float(row[1]))
-            if row[2] == "":
-                row[2] = None
-            dys.append(row[2])
+            # Split lightcurve quarters into 30-day chunks
+            # Unless this is quarter 17
+            if quarter != 17:
+                split_size = 30
+                q1_upper_bound = xs[0] + split_size
+                q3_lower_bound = xs[-1] - split_size
 
-    q1_upper_bound = xs[0] + quarter_size
-    q3_lower_bound = xs[-1] - quarter_size
+                q2_middle = numpy.mean(xs)
+                q2_lower_bound = q2_middle - split_size/2
+                q2_upper_bound = q2_middle + split_size/2
 
-    q2_middle = numpy.mean(xs)
-    q2_lower_bound = q2_middle - quarter_size/2
-    q2_upper_bound = q2_middle + quarter_size/2
+                splits = {
+                    1: copy.deepcopy(default_output),
+                    2: copy.deepcopy(default_output),
+                    3: copy.deepcopy(default_output)
+                }
+                for x, y, dy in zip(xs, ys, dys):
+                    if x <= q1_upper_bound:
+                        split_append(splits[1], x, y, dy)
 
-    quarters = {
-        1: copy.deepcopy(default_output),
-        2: copy.deepcopy(default_output),
-        3: copy.deepcopy(default_output)
-    }
+                    if x >= q2_lower_bound and x <= q2_upper_bound:
+                        split_append(splits[2], x, y, dy)
 
-    for x, y, dy in zip(xs, ys, dys):
-        if x <= q1_upper_bound:
-            quarter_append(quarters[1], x, y, dy)
+                    if x >= q3_lower_bound:
+                        split_append(splits[3], x, y, dy)
 
-        if x >= q2_lower_bound and x <= q2_upper_bound:
-            quarter_append(quarters[2], x, y, dy)
+                splits[1]['metadata']['start_time'] = splits[1]['x'][0]
+                splits[2]['metadata']['start_time'] = splits[2]['x'][0]
+                splits[3]['metadata']['start_time'] = splits[3]['x'][0]
+            else:
+                splits = {
+                    1: copy.deepcopy(default_output)
+                }
+                splits[1]['metadata']['start_time'] = xs[0]
+                splits[1]['x'] = xs
+                splits[1]['y'] = ys
+                splits[1]['dys'] = dys
 
-        if x >= q3_lower_bound:
-            quarter_append(quarters[3], x, y, dy)
+            # Write lightcurve data and metadata to JSON
+            for split, json_out in splits.items():
+                out_file_name = "/data/json_lightcurve/kdwarf-%s-%s-%s.json" % (
+                    kepid, quarter, split
+                )
 
-    quarters[1]['metadata']['start_time'] = quarters[1]['x'][0]
-    quarters[2]['metadata']['start_time'] = quarters[2]['x'][0]
-    quarters[3]['metadata']['start_time'] = quarters[3]['x'][0]
+                print "\t\tWriting %s" % out_file_name
+                with open(out_file_name, "w") as out_file:
+                    json.dump(json_out, out_file)
 
-    light_curves = []
-
-    for quarter, data in quarters.items():
-        filename = '%s-%s-1-%s.json' % (CAMPAIGN_NO, epic_id, quarter)
-        with open(
-            'lc-output/%s' % filename, 'w'
-        ) as json_out:
-            try:
-                json.dump(data, json_out)
-            except Exception as e:
-                print data
-                raise e
-        light_curves.append({
-            'location': 'http://www.planethunters.org/subjects/%s' % filename,
-            'quarter': '1-%s' % quarter,
-            'start_time': quarters[quarter]['metadata']['start_time']
-        })
-
-    manifest_out = {
-        'type': 'subject',
-        'metadata': copy.deepcopy(default_output['metadata']),
-        'light_curves': light_curves,
-        'coords': [
-            default_output['metadata'].get('2mass_ra'),
-            default_output['metadata'].get('2mass_dec')
-        ]
-    }
-    manifest_out['metadata']['magnitudes'] = magnitudes[epic_id]
-
-    manifest.append(manifest_out)
-    progress.update(f_num)
-
-print ""
-
-with open('manifest.json', 'w') as manifest_f:
-    json.dump(manifest, manifest_f)
+if unknown_ids:
+    print "Warning: Skipped the following unknown kepler IDs"
+    for unknown_id in unknown_ids:
+        print "\t%s" % unknown_id

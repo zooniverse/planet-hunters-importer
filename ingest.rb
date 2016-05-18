@@ -1,4 +1,4 @@
-group = PlanetHunterGroup.create({ name: 'k2-4' })
+group = PlanetHunterGroup.create({ name: 'kdwarf-1-synthetic' })
 
 json = JSON.parse(File.read('/config/manifest.json')); nil
 
