@@ -128,9 +128,11 @@ for row in bar(list(metadata_r)):
 
             xs, ys, dys = [], [], []
             for lc_row in lc_data:
-                if not numpy.isnan(lc_row['TIME']):
+                if (
+                    not numpy.isnan(lc_row['TIME']) and
+                    not numpy.isnan(lc_row['PDCSAP_FLUX'])
+                ):
                     xs.append(float(lc_row['TIME']))
-                    # TODO: Check if we should use SAP_FLUX or PDCSAP_FLUX
                     ys.append(float(lc_row['PDCSAP_FLUX']))
                     dys.append(None)
 
