@@ -4,24 +4,38 @@ import csv
 import numpy
 import os
 import re
+import sys
 import json
 
 # Load metadata from CSV
 
-metadata_f = open('/data/KDwarfs-batch1-fixed.csv', 'r')
-metadata_r = csv.reader(metadata_f)
+try:
+    METADATA_FILE = sys.argv[1]
+except IndexError:
+    print "Please specify the name of the file containing lightcurve URLs"
+    sys.exit(1)
 
-# Put all fits filenames into dict of lists indexed by kepler ID
-fits_files = {}
+DATAPATH = os.environ.get('DATAPATH', os.path.join('/', 'data'))
+OUTPATH = os.environ.get('OUTPATH', os.path.join(DATAPATH, 'out'))
+
+if not os.path.isdir(DATAPATH):
+    os.mkdir(DATAPATH)
+
+if not os.path.isdir(OUTPATH):
+    os.mkdir(OUTPATH)
+
+metadata_f = open(METADATA_FILE, 'r')
+metadata_r = csv.reader(metadata_f)
 
 def split_append(q, x, y, dy):
     q['x'].append(x)
     q['y'].append(y)
     q['dy'].append(dy)
 
-DATA_PATH_PREFIX = os.path.join('/', 'data', 'kdwarf')
+# Put all fits filenames into dict of lists indexed by kepler ID
+fits_files = {}
 
-for fits_file_name in os.listdir('/data/kdwarf'):
+for fits_file_name in os.listdir(DATAPATH):
     kepler_id_match = re.match(
         r'kplr(?P<keplerid>[0-9]{9})-[0-9]{13}_llc\.fits$',
         fits_file_name
@@ -31,84 +45,83 @@ for fits_file_name in os.listdir('/data/kdwarf'):
     kepler_id = int(kepler_id_match.group('keplerid'))
     fits_files.setdefault(kepler_id, []).append(fits_file_name)
 
-metadata_r.next()
+headers = metadata_r.next()
 
 unknown_ids = set()
 
 for row in metadata_r:
-    (rowid, st_delivname, kepid, tm_designation, ra, dec, kepmag, activity,
-     teff, teff_err1, teff_err2, teff_prov, logg, logg_err1, logg_err2,
-     logg_prov, feh, feh_err1, feh_err2, feh_prov, radius, radius_err1,
-     radius_err2, mass, mass_err1, mass_err2, dens, dens_err1, dens_err2,
-     prov_sec, nconfp, nkoi, ntce, st_quarters, Q1, Q2, Q3, Q4, Q5, Q6, Q7, Q8,
-     Q9, Q10, Q11, Q12, Q13, Q14, Q15, Q16, Q17, NumQobserved, st_vet_date,
-     ra_str, dec_str) = row
-    kepid = int(kepid)
+    row = dict(zip(headers, row))
+    row['kepid'] = int(row['kepid'])
 
-    if kepid not in fits_files:
-        unknown_ids.add(kepid)
+    if row['kepid'] not in fits_files:
+        unknown_ids.add(row['kepid'])
         continue
 
-    print "Processing %s" % kepid
+    print "Processing %s" % row['kepid']
 
     # match files to Qx where Qx = 1
     quarters = []
     for quarter, present in enumerate([
-        Q1, Q2, Q3, Q4, Q5, Q6, Q7, Q8, Q9, Q10, Q11, Q12, Q13, Q14, Q15, Q16,
-        Q17
+        row['Q1'], row['Q2'], row['Q3'], row['Q4'], row['Q5'], row['Q6'],
+        row['Q7'], row['Q8'], row['Q9'], row['Q10'], row['Q11'], row['Q12'],
+        row['Q13'], row['Q14'], row['Q15'], row['Q16'], row['Q17']
     ], start=1):
         if present == '1':
             quarters.append(quarter)
 
     # Load lightcurve data from FITS
-    for fits_file, quarter in zip(sorted(fits_files[kepid]), quarters):
+    for fits_file, quarter in zip(sorted(fits_files[row['kepid']]), quarters):
         print "\tProcessing %s" % fits_file
-        with fits.open(os.path.join(DATA_PATH_PREFIX, fits_file)) as hdu_list:
+        with fits.open(os.path.join(DATAPATH, fits_file)) as hdu_list:
             lc_data = hdu_list['LIGHTCURVE'].data
+            metadata_fields = (
+                'rowid',
+                'st_delivname',
+                'kepid',
+                'tm_designation',
+                'ra',
+                'dec',
+                'kepmag',
+                'activity',
+                'teff',
+                'teff_err1',
+                'teff_err2',
+                'teff_prov',
+                'logg',
+                'logg_err1',
+                'logg_err2',
+                'logg_prov',
+                'feh',
+                'feh_err1',
+                'feh_err2',
+                'feh_prov',
+                'radius',
+                'radius_err1',
+                'radius_err2',
+                'mass',
+                'mass_err1',
+                'mass_err2',
+                'dens',
+                'dens_err1',
+                'dens_err2',
+                'prov_sec',
+                'nconfp',
+                'nkoi',
+                'ntce',
+                'st_quarters',
+                'st_vet_date',
+                'ra_str',
+                'dec_str'
+            )
             default_output = {
                 'x': [],
                 'y': [],
                 'dy': [],
-                'metadata': {
-                    "rowid": rowid,
-                    "st_delivname": st_delivname,
-                    "kepid": kepid,
-                    "tm_designation": tm_designation,
-                    "ra": ra,
-                    "dec": dec,
-                    "kepmag": kepmag,
-                    "activity": activity,
-                    "teff": teff,
-                    "teff_err1": teff_err1,
-                    "teff_err2": teff_err2,
-                    "teff_prov": teff_prov,
-                    "logg": logg,
-                    "logg_err1": logg_err1,
-                    "logg_err2": logg_err2,
-                    "logg_prov": logg_prov,
-                    "feh": feh,
-                    "feh_err1": feh_err1,
-                    "feh_err2": feh_err2,
-                    "feh_prov": feh_prov,
-                    "radius": radius,
-                    "radius_err1": radius_err1,
-                    "radius_err2": radius_err2,
-                    "mass": mass,
-                    "mass_err1": mass_err1,
-                    "mass_err2": mass_err2,
-                    "dens": dens,
-                    "dens_err1": dens_err1,
-                    "dens_err2": dens_err2,
-                    "prov_sec": prov_sec,
-                    "nconfp": nconfp,
-                    "nkoi": nkoi,
-                    "ntce": ntce,
-                    "st_quarters": st_quarters,
-                    "st_vet_date": st_vet_date,
-                    "ra_str": ra_str,
-                    "dec_str": dec_str
-                },
+                'metadata': {},
             }
+            for field in metadata_fields:
+                default_output[field] = row[field]
+
             xs, ys, dys = [], [], []
             for lc_row in lc_data:
                 if not numpy.isnan(lc_row['TIME']):
@@ -157,9 +170,9 @@ for row in metadata_r:
 
             # Write lightcurve data and metadata to JSON
             for split, json_out in splits.items():
-                out_file_name = "/data/json_lightcurve/kdwarf-%s-%s-%s.json" % (
-                    kepid, quarter, split
-                )
+                out_file_name = os.path.join(OUTPATH, 'kdwarf-%s-%s-%s.json' % (
+                    row['kepid'], quarter, split
+                ))
 
                 print "\t\tWriting %s" % out_file_name
                 with open(out_file_name, "w") as out_file:
