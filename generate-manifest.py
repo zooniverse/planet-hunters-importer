@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 import copy
-import json
 import os
 import re
+import ujson as json
 
 DATAPATH = os.environ.get('DATAPATH', os.path.join('/', 'data'))
 OUTPATH = os.environ.get('OUTPATH', os.path.join(DATAPATH, 'out'))

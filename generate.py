@@ -2,12 +2,12 @@
 import astropy.io.fits as fits
 import copy
 import csv
-import json
 import numpy
 import os
 import progressbar
 import re
 import sys
+import ujson as json
 
 # Load metadata from CSV
 
