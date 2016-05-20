@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 import astropy.io.fits as fits
 import copy
 import csv
