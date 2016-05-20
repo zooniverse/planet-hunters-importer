@@ -3,11 +3,12 @@ import json
 import os
 import re
 
-DATA_PATH = '/data/json_lightcurve/'
+DATAPATH = os.environ.get('DATAPATH', os.path.join('/', 'data'))
+OUTPATH = os.environ.get('OUTPATH', os.path.join(DATAPATH, 'out'))
 
 subject_data = {}
 
-for file_name in os.listdir(DATA_PATH):
+for file_name in os.listdir(OUTPATH):
     file_name_match = re.match(
         r'kdwarf-(?P<keplerid>[0-9]+)-(?P<quarter>[0-9]+-[0-9]+)\.json$',
         file_name
@@ -15,7 +16,7 @@ for file_name in os.listdir(DATA_PATH):
     if not file_name_match:
         continue
     kepler_id = file_name_match.group('keplerid')
-    with open(os.path.join(DATA_PATH, file_name)) as f:
+    with open(os.path.join(OUTPATH, file_name)) as f:
         file_data = json.load(f)
     subject_data.setdefault(
         kepler_id,
@@ -37,5 +38,5 @@ for file_name in os.listdir(DATA_PATH):
         'start_time': file_data['metadata'].get('start_time')
     })
 
-with open('manifest.json', 'w') as f_out:
+with open(os.path.join(OUTPATH, 'manifest.json', 'w')) as f_out:
     json.dump(subject_data.values(), f_out)
