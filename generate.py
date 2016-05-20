@@ -2,11 +2,11 @@
 import astropy.io.fits as fits
 import copy
 import csv
+import json
 import numpy
 import os
 import re
 import sys
-import json
 
 # Load metadata from CSV
 
