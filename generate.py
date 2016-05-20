@@ -14,7 +14,7 @@ import sys
 try:
     METADATA_FILE = sys.argv[1]
 except IndexError:
-    print "Please specify the name of the file containing lightcurve URLs"
+    print "Please specify the name of the metadata file"
     sys.exit(1)
 
 DATAPATH = os.environ.get('DATAPATH', os.path.join('/', 'data'))
