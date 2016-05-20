@@ -1,3 +1,4 @@
 astropy
 ujson
 numpy
+progressbar2

@@ -5,6 +5,7 @@ import csv
 import json
 import numpy
 import os
+import progressbar
 import re
 import sys
 
@@ -50,7 +51,9 @@ headers = metadata_r.next()
 
 unknown_ids = set()
 
-for row in metadata_r:
+bar = progressbar.ProgressBar(redirect_stdout=True)
+
+for row in bar(list(metadata_r)):
     row = dict(zip(headers, row))
     row['kepid'] = int(row['kepid'])
 
