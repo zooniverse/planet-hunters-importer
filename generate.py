@@ -124,7 +124,7 @@ for row in bar(list(metadata_r)):
                 'metadata': {},
             }
             for field in metadata_fields:
-                default_output[field] = row[field]
+                default_output['metadata'][field] = row[field]
 
             xs, ys, dys = [], [], []
             for lc_row in lc_data:
