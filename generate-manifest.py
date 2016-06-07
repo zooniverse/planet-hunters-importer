@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import copy
 import os
+import progressbar
 import re
 import ujson as json
 
@@ -8,8 +9,9 @@ DATAPATH = os.environ.get('DATAPATH', os.path.join('/', 'data'))
 OUTPATH = os.environ.get('OUTPATH', os.path.join(DATAPATH, 'out'))
 
 subject_data = {}
+bar = progressbar.ProgressBar(redirect_stdout=True)
 
-for file_name in os.listdir(OUTPATH):
+for file_name in bar(os.listdir(OUTPATH)):
     file_name_match = re.match(
         r'kdwarf-(?P<keplerid>[0-9]+)-(?P<quarter>[0-9]+-[0-9]+)\.json$',
         file_name
