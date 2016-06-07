@@ -39,5 +39,5 @@ for file_name in os.listdir(OUTPATH):
         'start_time': file_data['metadata'].get('start_time')
     })
 
-with open(os.path.join(OUTPATH, 'manifest.json', 'w')) as f_out:
+with open(os.path.join(OUTPATH, 'manifest.json'), 'w') as f_out:
     json.dump(subject_data.values(), f_out)
