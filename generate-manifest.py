@@ -36,7 +36,7 @@ for file_name in bar(os.listdir(OUTPATH)):
     if 'start_time' in subject_data[kepler_id]['metadata']:
         del subject_data[kepler_id]['metadata']['start_time']
     subject_data[kepler_id]['light_curves'].append({
-        'location': 'http://www.planethunters.org/subjects/%s' % file_name,
+        'location': 'https://www.planethunters.org/subjects/%s' % file_name,
         'quarter': file_name_match.group('quarter'),
         'start_time': file_data['metadata'].get('start_time')
     })
