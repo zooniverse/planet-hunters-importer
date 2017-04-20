@@ -26,7 +26,7 @@ if not os.path.isdir(DATAPATH):
 if not os.path.isdir(OUTPATH):
     os.mkdir(OUTPATH)
 
-metadata_f = open(METADATA_FILE, 'r')
+metadata_f = open(METADATA_FILE, 'rU')
 metadata_r = csv.reader(metadata_f)
 
 def split_append(q, x, y, dy):
